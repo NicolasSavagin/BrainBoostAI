@@ -94,7 +94,7 @@ ai-learning-platform/
 
 - Node.js 16+ instalado
 - Conta no Firebase
-- API Key da Anthropic (Claude)
+- API Key Gemini
 
 ### 2. Configurar Firebase
 
