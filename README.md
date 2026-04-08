@@ -50,7 +50,7 @@ Uma plataforma de ensino personalizada com Inteligência Artificial, similar ao 
 - **Firebase Storage** - Armazenamento de arquivos
 
 ### IA
-- **Anthropic Claude API** - Geração de conteúdo e feedback inteligente
+- **Gemini API** - Geração de conteúdo e feedback inteligente
 
 ## 📁 Estrutura do Projeto
 
