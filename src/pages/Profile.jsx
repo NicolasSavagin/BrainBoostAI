@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { 
   User, Mail, Calendar, Settings, Camera, MapPin, Link as LinkIcon,
   Briefcase, GraduationCap, Award, Code, Github, Linkedin, Twitter,
-  Plus, Edit2, Trash2, ExternalLink, Check, X, Globe
+  Plus, Edit2, Trash2, ExternalLink, Check, X, Globe, Zap
 } from 'lucide-react';
 import { useAuthStore } from '../store';
 import profileService from '../services/profileService';
 import { motion, AnimatePresence } from 'framer-motion';
+import skillProgressService from '../services/skillProgressService';
+
 
 export default function Profile() {
   const { user, userProfile, setUserProfile } = useAuthStore();
@@ -16,6 +18,8 @@ export default function Profile() {
   const [activeTab, setActiveTab] = useState('about');
   const [showModal, setShowModal] = useState(null);
   const [stats, setStats] = useState(null);
+  const [gameSkills, setGameSkills] = useState([]);
+
 
   // Form states
   const [bioForm, setBioForm] = useState({
@@ -262,6 +266,7 @@ export default function Profile() {
   }
 
   const tabs = [
+    { id: 'game-skills', label: 'Skills do Jogo', icon: Zap },
     { id: 'about', label: 'Sobre', icon: User },
     { id: 'experience', label: 'Experiência', icon: Briefcase },
     { id: 'education', label: 'Formação', icon: GraduationCap },
@@ -269,6 +274,7 @@ export default function Profile() {
     { id: 'certifications', label: 'Certificações', icon: Award },
     { id: 'projects', label: 'Projetos', icon: Github },
   ];
+
 
   return (
     <div className="space-y-6">
@@ -610,7 +616,93 @@ export default function Profile() {
               </div>
             </div>
           )}
+            {activeTab === 'game-skills' && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Skills da Plataforma
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Suas habilidades evoluem conforme você pratica exercícios!
+              </p>
 
+              {/* Agrupar por categoria */}
+              {Object.entries(
+                gameSkills.reduce((acc, skill) => {
+                  if (!acc[skill.category]) acc[skill.category] = [];
+                  acc[skill.category].push(skill);
+                  return acc;
+                }, {})
+              ).map(([category, skills]) => (
+                <div key={category} className="mb-6">
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-3">
+                    {category}
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {skills.map((skill) => {
+                      const rankInfo = skillProgressService.getSkillRank(skill.level);
+                      const progress = skill.notStarted ? 0 : 
+                        (skill.currentXP / skill.xpPerLevel) * 100;
+
+                      return (
+                        <div 
+                          key={skill.skillName} 
+                          className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-primary-500 transition-colors"
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <div>
+                              <h5 className="font-semibold text-gray-900 dark:text-white">
+                                {skill.skillName}
+                              </h5>
+                              <p className={`text-sm font-semibold ${rankInfo.color}`}>
+                                {rankInfo.rank} • Nível {skill.level}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-2xl font-bold text-primary-600">
+                                {skill.level}
+                              </p>
+                              <p className="text-xs text-gray-500">/ {skill.maxLevel}</p>
+                            </div>
+                          </div>
+
+                          {!skill.notStarted && (
+                            <>
+                              <div className="mb-2">
+                                <div className="flex justify-between text-xs mb-1">
+                                  <span className="text-gray-600 dark:text-gray-400">
+                                    XP: {skill.currentXP} / {skill.xpPerLevel}
+                                  </span>
+                                  <span className="text-gray-600 dark:text-gray-400">
+                                    {Math.round(progress)}%
+                                  </span>
+                                </div>
+                                <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                  <div 
+                                    className="h-full bg-gradient-to-r from-primary-500 to-purple-600 transition-all duration-500"
+                                    style={{ width: `${progress}%` }}
+                                  ></div>
+                                </div>
+                              </div>
+
+                              <p className="text-xs text-gray-500 dark:text-gray-500">
+                                Total: {skill.totalXP} XP
+                              </p>
+                            </>
+                          )}
+
+                          {skill.notStarted && (
+                            <p className="text-sm text-gray-500 dark:text-gray-500 italic">
+                              Comece a praticar para desbloquear esta skill!
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
           {/* Experience Tab */}
           {activeTab === 'experience' && (
             <div className="space-y-4">

@@ -4,6 +4,8 @@ import aiService from '../services/aiService';
 import authService from '../services/authService';
 import exerciseService from '../services/exerciseService';
 import { useAuthStore, useLearningStore, useNotificationStore } from '../store';
+import skillProgressService from '../services/skillProgressService';
+
 
 export default function Practice() {
   const { user, userProfile, setUserProfile } = useAuthStore();
@@ -128,6 +130,32 @@ export default function Practice() {
         difficulty,
         timeSpent: 0, // você pode adicionar timer depois
       });
+      // 🎯 Adicionar XP à skill
+      const skillMap = {
+        'Programação - JavaScript': 'JavaScript',
+        'Programação - Python': 'Python',
+        'Matemática - Álgebra': 'Álgebra',
+        'Matemática - Geometria': 'Geometria',
+        'Inglês - Gramática': 'Gramática',
+        'Inglês - Vocabulário': 'Vocabulário',
+      };
+
+      const skillName = skillMap[selectedTopic];
+      if (skillName && feedbackData.isCorrect) {
+        const skillResult = await skillProgressService.addSkillXP(
+          user.uid,
+          selectedTopic,
+          skillName,
+          xpGain
+        );
+
+        if (skillResult.leveledUp) {
+          addNotification({
+            type: 'success',
+            message: `🎉 ${skillName} subiu para Nível ${skillResult.newLevel}!`
+          });
+        }
+      }
 
       // Calcular XP
       const xpGain = feedbackData.isCorrect ? currentExercise.xpReward : 2;
