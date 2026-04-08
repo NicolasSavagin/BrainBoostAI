@@ -20,7 +20,7 @@ export default function AuthLayout() {
           </div>
           
           <h1 className="text-5xl font-bold mb-4 text-center">
-            FluencyLab
+            BrainBoostAI
           </h1>
           
           <p className="text-xl text-white text-opacity-90 mb-12 text-center max-w-md">
