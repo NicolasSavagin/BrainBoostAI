@@ -11,7 +11,7 @@ export default function LoadingScreen() {
         </div>
 
         <h2 className="text-2xl font-bold text-white mb-2">
-          Conexy
+          BrainBoost
         </h2>
 
         <p className="text-white/80 mb-4">
