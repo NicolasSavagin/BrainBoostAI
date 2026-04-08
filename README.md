@@ -5,7 +5,7 @@ Uma plataforma de ensino personalizada com Inteligência Artificial, similar ao 
 ## ✨ Características Principais
 
 ### 🤖 IA Personalizada
-- Exercícios gerados dinamicamente usando Claude (Anthropic AI)
+- Exercícios gerados dinamicamente usando Gemini
 - Feedback inteligente e personalizado
 - Análise de progresso com insights da IA
 - Plano de estudos adaptativo baseado no desempenho
