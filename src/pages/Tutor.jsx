@@ -1,3 +1,5 @@
+// src/pages/Tutor.jsx - VERSÃO COMPLETA COM SALVAMENTO
+
 import { useState, useEffect, useRef } from 'react';
 import { 
   MessageCircle, 
@@ -8,10 +10,17 @@ import {
   Brain,
   TrendingUp,
   Calendar,
-  Loader2
+  Loader2,
+  Save,
+  Trash2,
+  CheckCircle,
+  Clock,
+  Play,
+  Pause
 } from 'lucide-react';
 import { useAuthStore, useNotificationStore } from '../store';
 import tutorService from '../services/tutorService';
+import studyPlanService from '../services/studyPlanService';
 
 export default function Tutor() {
   const { user, userProfile } = useAuthStore();
@@ -25,6 +34,8 @@ export default function Tutor() {
   const [performance, setPerformance] = useState(null);
   const [showStudyPlan, setShowStudyPlan] = useState(false);
   const [studyPlan, setStudyPlan] = useState(null);
+  const [savedPlans, setSavedPlans] = useState([]);
+  const [showSavedPlans, setShowSavedPlans] = useState(false);
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -34,6 +45,7 @@ export default function Tutor() {
       loadChatHistory();
       loadSuggestions();
       loadPerformance();
+      loadSavedPlans();
     }
   }, [user]);
 
@@ -51,7 +63,6 @@ export default function Tutor() {
       const history = await tutorService.getChatHistory(user.uid);
       
       if (history.length === 0) {
-        // Mensagem de boas-vindas
         setMessages([{
           role: 'assistant',
           content: `Olá, ${userProfile?.displayName || 'estudante'}! 👋
@@ -63,6 +74,7 @@ Posso te auxiliar com:
 - Dicas de estudo personalizadas
 - Análise do seu desempenho
 - Motivação e orientação
+- Criar planos de estudo personalizados
 
 Como posso te ajudar hoje?`,
           timestamp: new Date().toISOString()
@@ -96,6 +108,15 @@ Como posso te ajudar hoje?`,
     }
   };
 
+  const loadSavedPlans = async () => {
+    try {
+      const plans = await studyPlanService.getUserPlans(user.uid);
+      setSavedPlans(plans);
+    } catch (error) {
+      console.error('Erro ao carregar planos salvos:', error);
+    }
+  };
+
   const sendMessage = async (messageText = inputMessage) => {
     if (!messageText.trim() || loading) return;
 
@@ -110,10 +131,8 @@ Como posso te ajudar hoje?`,
     setLoading(true);
 
     try {
-      // Salvar mensagem do usuário
       await tutorService.saveChatMessage(user.uid, 'user', messageText);
 
-      // Obter resposta do tutor
       const response = await tutorService.getTutorResponse(
         user.uid,
         messageText,
@@ -127,8 +146,6 @@ Como posso te ajudar hoje?`,
       };
 
       setMessages(prev => [...prev, assistantMessage]);
-
-      // Salvar resposta do tutor
       await tutorService.saveChatMessage(user.uid, 'assistant', response);
 
     } catch (error) {
@@ -138,7 +155,6 @@ Como posso te ajudar hoje?`,
         message: 'Erro ao obter resposta do tutor. Verifique sua API key.'
       });
 
-      // Mensagem de erro amigável
       const errorMessage = {
         role: 'assistant',
         content: 'Desculpe, tive um problema técnico. Pode tentar novamente? 😅',
@@ -159,7 +175,7 @@ Como posso te ajudar hoje?`,
       const plan = await tutorService.generateStudyPlan(
         user.uid,
         ['Melhorar desempenho geral', 'Fortalecer pontos fracos'],
-        30 // 30 minutos por dia
+        30
       );
 
       setStudyPlan(plan);
@@ -178,6 +194,80 @@ Como posso te ajudar hoje?`,
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const saveCurrentPlan = async () => {
+    if (!studyPlan) return;
+
+    try {
+      const planTitle = prompt('Digite um título para este plano de estudos:', 'Meu Plano de Estudos');
+      if (!planTitle) return;
+
+      await studyPlanService.saveStudyPlan(user.uid, {
+        ...studyPlan,
+        title: planTitle
+      });
+
+      addNotification({
+        type: 'success',
+        message: '💾 Plano salvo com sucesso!'
+      });
+
+      await loadSavedPlans();
+      setShowStudyPlan(false);
+
+    } catch (error) {
+      console.error('Erro ao salvar plano:', error);
+      addNotification({
+        type: 'error',
+        message: 'Erro ao salvar plano'
+      });
+    }
+  };
+
+  const deletePlan = async (planId) => {
+    if (!confirm('Tem certeza que deseja excluir este plano?')) return;
+
+    try {
+      await studyPlanService.deletePlan(planId);
+      await loadSavedPlans();
+      
+      addNotification({
+        type: 'success',
+        message: 'Plano excluído com sucesso'
+      });
+    } catch (error) {
+      console.error('Erro ao deletar plano:', error);
+    }
+  };
+
+  const togglePlanStatus = async (planId, currentStatus) => {
+    try {
+      const newStatus = currentStatus === 'active' ? 'paused' : 'active';
+      await studyPlanService.togglePlanStatus(planId, newStatus);
+      await loadSavedPlans();
+
+      addNotification({
+        type: 'success',
+        message: newStatus === 'active' ? 'Plano retomado!' : 'Plano pausado'
+      });
+    } catch (error) {
+      console.error('Erro ao alterar status:', error);
+    }
+  };
+
+  const completeActivity = async (planId, dayIndex, activityIndex) => {
+    try {
+      await studyPlanService.completeActivity(planId, dayIndex, activityIndex);
+      await loadSavedPlans();
+
+      addNotification({
+        type: 'success',
+        message: '✅ Atividade completada!'
+      });
+    } catch (error) {
+      console.error('Erro ao completar atividade:', error);
     }
   };
 
@@ -203,7 +293,7 @@ Como posso te ajudar hoje?`,
     <div className="h-[calc(100vh-8rem)] flex gap-6">
       
       {/* Sidebar - Performance */}
-      <div className="hidden lg:block w-80 space-y-4">
+      <div className="hidden lg:block w-80 space-y-4 overflow-y-auto">
         
         {/* Performance Card */}
         {performance && (
@@ -274,15 +364,103 @@ Como posso te ajudar hoje?`,
           </div>
         )}
 
-        {/* Study Plan Button */}
-        <button
-          onClick={generateStudyPlan}
-          disabled={loading}
-          className="btn-primary w-full flex items-center justify-center gap-2"
-        >
-          <Calendar size={18} />
-          Gerar Plano de Estudos
-        </button>
+        {/* Study Plan Buttons */}
+        <div className="space-y-2">
+          <button
+            onClick={generateStudyPlan}
+            disabled={loading}
+            className="btn-primary w-full flex items-center justify-center gap-2"
+          >
+            <Calendar size={18} />
+            Gerar Plano de Estudos
+          </button>
+
+          <button
+            onClick={() => setShowSavedPlans(!showSavedPlans)}
+            className="btn-secondary w-full flex items-center justify-center gap-2"
+          >
+            <BookOpen size={18} />
+            Meus Planos ({savedPlans.length})
+          </button>
+        </div>
+
+        {/* Saved Plans List */}
+        {showSavedPlans && (
+          <div className="card">
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-3">
+              Planos Salvos
+            </h3>
+            
+            {savedPlans.length === 0 ? (
+              <p className="text-sm text-gray-600 dark:text-gray-400 text-center py-4">
+                Nenhum plano salvo ainda
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {savedPlans.map((plan) => (
+                  <div 
+                    key={plan.id} 
+                    className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-primary-500 transition-colors"
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
+                          {plan.title}
+                        </h4>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className={`badge text-xs ${
+                            plan.status === 'active' 
+                              ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'
+                              : plan.status === 'completed'
+                              ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
+                              : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                          }`}>
+                            {plan.status === 'active' ? 'Ativo' : plan.status === 'completed' ? 'Completo' : 'Pausado'}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {plan.progress}%
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => togglePlanStatus(plan.id, plan.status)}
+                          className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                          title={plan.status === 'active' ? 'Pausar' : 'Retomar'}
+                        >
+                          {plan.status === 'active' ? (
+                            <Pause size={14} className="text-gray-600" />
+                          ) : (
+                            <Play size={14} className="text-green-600" />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => deletePlan(plan.id)}
+                          className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                          title="Excluir"
+                        >
+                          <Trash2 size={14} className="text-red-600" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-primary-500 to-purple-600 transition-all duration-500"
+                        style={{ width: `${plan.progress}%` }}
+                      ></div>
+                    </div>
+
+                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                      Criado em {new Date(plan.createdAt?.toDate()).toLocaleDateString('pt-BR')}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Quick Actions */}
         <div className="card">
@@ -436,12 +614,21 @@ Como posso te ajudar hoje?`,
                 <Calendar className="text-primary-600" size={28} />
                 Seu Plano de Estudos
               </h2>
-              <button
-                onClick={() => setShowStudyPlan(false)}
-                className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 text-2xl"
-              >
-                ✕
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={saveCurrentPlan}
+                  className="btn-primary flex items-center gap-2"
+                >
+                  <Save size={18} />
+                  Salvar Plano
+                </button>
+                <button
+                  onClick={() => setShowStudyPlan(false)}
+                  className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 text-2xl"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             <div className="space-y-6">

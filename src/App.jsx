@@ -9,6 +9,7 @@ import MainLayout from './components/layouts/MainLayout';
 import AuthLayout from './components/layouts/AuthLayout';
 
 // Pages
+import Forum from './pages/forum';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import Dashboard from './pages/Dashboard';
@@ -20,10 +21,13 @@ import Progress from './pages/Progress';
 import Profile from './pages/Profile';
 import Achievements from './pages/Achievements';
 import Leaderboard from './pages/Leaderboard';
+import Community from './pages/Community';
+import PublicProfile from './pages/PublicProfile';
 
 // Components
 import LoadingScreen from './components/common/LoadingScreen';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+
 
 function App() {
   const { user, setUser, setUserProfile, loading, setLoading } = useAuthStore();
@@ -109,8 +113,11 @@ useStreakCheck();
           <Route path="/lesson/:subtopicId/:lessonNumber" element={<Lesson />} />
           <Route path="/progress" element={<Progress />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/profile/:userId" element={<PublicProfile />} />
           <Route path="/achievements" element={<Achievements />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path='/community' element={<Community />} />
+          <Route path="/forum" element={<Forum />} />
         </Route>
 
         {/* 🔁 Redirect inteligente */}

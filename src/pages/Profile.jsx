@@ -85,6 +85,12 @@ export default function Profile() {
     }
   }, [user]);
 
+  useEffect(() => {
+    if (user && activeTab === 'game-skills') {
+      loadGameSkills();
+    }
+  }, [user, activeTab]);
+
   const loadProfile = async () => {
     try {
       setLoading(true);
@@ -113,6 +119,15 @@ export default function Profile() {
       console.error('Erro ao carregar perfil:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadGameSkills = async () => {
+    try {
+      const skills = await skillProgressService.getUserSkills(user.uid);
+      setGameSkills(skills);
+    } catch (error) {
+      console.error('Erro ao carregar skills:', error);
     }
   };
 
@@ -265,12 +280,13 @@ export default function Profile() {
     );
   }
 
+
   const tabs = [
-    { id: 'game-skills', label: 'Skills do Jogo', icon: Zap },
     { id: 'about', label: 'Sobre', icon: User },
     { id: 'experience', label: 'Experiência', icon: Briefcase },
     { id: 'education', label: 'Formação', icon: GraduationCap },
     { id: 'skills', label: 'Habilidades', icon: Code },
+    { id: 'game-skills', label: 'Skills do Jogo', icon: Zap },
     { id: 'certifications', label: 'Certificações', icon: Award },
     { id: 'projects', label: 'Projetos', icon: Github },
   ];
@@ -616,91 +632,113 @@ export default function Profile() {
               </div>
             </div>
           )}
-            {activeTab === 'game-skills' && (
+
+          {/* Skills do Jogo Tab - NOVA TAB */}
+          {activeTab === 'game-skills' && (
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Skills da Plataforma
-              </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                Suas habilidades evoluem conforme você pratica exercícios!
-              </p>
-
-              {/* Agrupar por categoria */}
-              {Object.entries(
-                gameSkills.reduce((acc, skill) => {
-                  if (!acc[skill.category]) acc[skill.category] = [];
-                  acc[skill.category].push(skill);
-                  return acc;
-                }, {})
-              ).map(([category, skills]) => (
-                <div key={category} className="mb-6">
-                  <h4 className="font-semibold text-gray-900 dark:text-white mb-3">
-                    {category}
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {skills.map((skill) => {
-                      const rankInfo = skillProgressService.getSkillRank(skill.level);
-                      const progress = skill.notStarted ? 0 : 
-                        (skill.currentXP / skill.xpPerLevel) * 100;
-
-                      return (
-                        <div 
-                          key={skill.skillName} 
-                          className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-primary-500 transition-colors"
-                        >
-                          <div className="flex items-center justify-between mb-3">
-                            <div>
-                              <h5 className="font-semibold text-gray-900 dark:text-white">
-                                {skill.skillName}
-                              </h5>
-                              <p className={`text-sm font-semibold ${rankInfo.color}`}>
-                                {rankInfo.rank} • Nível {skill.level}
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-2xl font-bold text-primary-600">
-                                {skill.level}
-                              </p>
-                              <p className="text-xs text-gray-500">/ {skill.maxLevel}</p>
-                            </div>
-                          </div>
-
-                          {!skill.notStarted && (
-                            <>
-                              <div className="mb-2">
-                                <div className="flex justify-between text-xs mb-1">
-                                  <span className="text-gray-600 dark:text-gray-400">
-                                    XP: {skill.currentXP} / {skill.xpPerLevel}
-                                  </span>
-                                  <span className="text-gray-600 dark:text-gray-400">
-                                    {Math.round(progress)}%
-                                  </span>
-                                </div>
-                                <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                                  <div 
-                                    className="h-full bg-gradient-to-r from-primary-500 to-purple-600 transition-all duration-500"
-                                    style={{ width: `${progress}%` }}
-                                  ></div>
-                                </div>
-                              </div>
-
-                              <p className="text-xs text-gray-500 dark:text-gray-500">
-                                Total: {skill.totalXP} XP
-                              </p>
-                            </>
-                          )}
-
-                          {skill.notStarted && (
-                            <p className="text-sm text-gray-500 dark:text-gray-500 italic">
-                              Comece a praticar para desbloquear esta skill!
-                            </p>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Skills da Plataforma 🎮
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    Suas habilidades evoluem conforme você pratica exercícios!
+                  </p>
                 </div>
-              ))}
+              </div>
+
+              {gameSkills.length === 0 ? (
+                <div className="text-center py-12">
+                  <Zap className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                  <p className="text-gray-600 dark:text-gray-400">
+                    Carregando suas skills...
+                  </p>
+                </div>
+              ) : (
+                Object.entries(
+                  gameSkills.reduce((acc, skill) => {
+                    if (!acc[skill.category]) acc[skill.category] = [];
+                    acc[skill.category].push(skill);
+                    return acc;
+                  }, {})
+                ).map(([category, skills]) => (
+                  <div key={category} className="mb-6">
+                    <h4 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                      <Zap className="text-primary-600" size={20} />
+                      {category}
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {skills.map((skill) => {
+                        const rankInfo = skillProgressService.getSkillRank(skill.level);
+                        const progress = skill.notStarted ? 0 : 
+                          (skill.currentXP / skill.xpPerLevel) * 100;
+
+                        return (
+                          <div 
+                            key={skill.skillName} 
+                            className="p-4 border-2 border-gray-200 dark:border-gray-700 rounded-xl hover:border-primary-500 transition-all hover:shadow-lg"
+                          >
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex-1">
+                                <h5 className="font-semibold text-gray-900 dark:text-white text-lg">
+                                  {skill.skillName}
+                                </h5>
+                                <p className={`text-sm font-semibold ${rankInfo.color}`}>
+                                  {rankInfo.rank}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-3xl font-bold text-primary-600 dark:text-primary-400">
+                                  {skill.level}
+                                </p>
+                                <p className="text-xs text-gray-500">/ {skill.maxLevel}</p>
+                              </div>
+                            </div>
+
+                            {!skill.notStarted ? (
+                              <>
+                                <div className="mb-2">
+                                  <div className="flex justify-between text-xs mb-1">
+                                    <span className="text-gray-600 dark:text-gray-400">
+                                      {skill.currentXP} / {skill.xpPerLevel} XP
+                                    </span>
+                                    <span className="font-semibold text-primary-600">
+                                      {Math.round(progress)}%
+                                    </span>
+                                  </div>
+                                  <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                    <div 
+                                      className="h-full bg-gradient-to-r from-primary-500 to-purple-600 transition-all duration-500"
+                                      style={{ width: `${progress}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
+                                  <p className="text-xs text-gray-500 dark:text-gray-500">
+                                    Total: {skill.totalXP} XP
+                                  </p>
+                                  {skill.lastPracticed && (
+                                    <p className="text-xs text-gray-500 dark:text-gray-500">
+                                      Última prática: {new Date(skill.lastPracticed.toDate()).toLocaleDateString('pt-BR')}
+                                    </p>
+                                  )}
+                                </div>
+                              </>
+                            ) : (
+                              <div className="text-center py-4">
+                                <p className="text-sm text-gray-500 dark:text-gray-500 italic">
+                                  🎯 Comece a praticar para desbloquear!
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           )}
           {/* Experience Tab */}
