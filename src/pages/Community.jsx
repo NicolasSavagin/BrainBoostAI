@@ -38,21 +38,25 @@ export default function Community() {
 
   useEffect(() => {
     loadUsers();
-  }, [filterBy]);
+  }, [filterBy, activeTab]);
 
   const loadUsers = async () => {
     try {
       setLoading(true);
-      const q = query(
-        collection(db, 'users'),
-        orderBy(filterBy, 'desc'),
-        limit(50)
-      );
+      const sortField = activeTab === 'top' ? 'weeklyXP' : filterBy;
 
-      const snapshot = await getDocs(q);
+      let snapshot;
+      try {
+        const q = query(collection(db, 'users'), orderBy(sortField, 'desc'), limit(50));
+        snapshot = await getDocs(q);
+      } catch {
+        const q = query(collection(db, 'users'), orderBy('totalXP', 'desc'), limit(50));
+        snapshot = await getDocs(q);
+      }
+
       const usersData = snapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() }))
-        .filter(u => u.id !== user.uid); // Remover usuário atual
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .filter((u) => u.id !== user?.uid);
 
       setUsers(usersData);
     } catch (error) {
@@ -70,7 +74,7 @@ export default function Community() {
 
   const tabs = [
     { id: 'users', label: 'Explorar Usuários', icon: Users },
-    { id: 'top', label: 'Top da Semana', icon: TrendingUp },
+    { id: 'top', label: 'Top da Semana (XP)', icon: TrendingUp },
   ];
 
   const filterOptions = [
@@ -163,21 +167,21 @@ export default function Community() {
         <div className="card text-center">
           <Flame className="w-8 h-8 mx-auto mb-2 text-orange-600" />
           <p className="text-2xl font-bold text-gray-900 dark:text-white">
-            {Math.max(...users.map(u => u.streak || 0))}
+            {users.length ? Math.max(...users.map(u => u.streak || 0)) : 0}
           </p>
           <p className="text-sm text-gray-600 dark:text-gray-400">Maior Streak</p>
         </div>
         <div className="card text-center">
           <Star className="w-8 h-8 mx-auto mb-2 text-yellow-600" />
           <p className="text-2xl font-bold text-gray-900 dark:text-white">
-            {Math.max(...users.map(u => u.totalXP || 0)).toLocaleString()}
+            {users.length ? Math.max(...users.map(u => u.totalXP || 0)).toLocaleString() : 0}
           </p>
           <p className="text-sm text-gray-600 dark:text-gray-400">Maior XP</p>
         </div>
         <div className="card text-center">
           <Award className="w-8 h-8 mx-auto mb-2 text-purple-600" />
           <p className="text-2xl font-bold text-gray-900 dark:text-white">
-            {Math.max(...users.map(u => u.level || 0))}
+            {users.length ? Math.max(...users.map(u => u.level || 0)) : 0}
           </p>
           <p className="text-sm text-gray-600 dark:text-gray-400">Maior Nível</p>
         </div>
@@ -230,8 +234,6 @@ export default function Community() {
                           userData.displayName?.[0]?.toUpperCase() || 'U'
                         )}
                       </div>
-                      {/* Online indicator */}
-                      <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-2 border-white dark:border-gray-800 rounded-full"></div>
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-gray-900 dark:text-white text-lg group-hover:text-primary-600 transition-colors truncate">
@@ -324,7 +326,7 @@ export default function Community() {
           {activeTab === 'top' && (
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                🏆 Top 10 da Semana
+                🏆 Top 10 da Semana (por XP semanal)
               </h3>
               
               <div className="space-y-3">
@@ -371,7 +373,7 @@ export default function Community() {
                     <div className="flex items-center gap-4">
                       <div className="text-right">
                         <p className="text-sm text-gray-600 dark:text-gray-400">XP</p>
-                        <p className="font-bold text-primary-600">{userData.totalXP || 0}</p>
+                        <p className="font-bold text-primary-600">{userData.weeklyXP || 0}</p>
                       </div>
                       <div className="text-right">
                         <p className="text-sm text-gray-600 dark:text-gray-400">Streak</p>

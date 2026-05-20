@@ -4,6 +4,33 @@ const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
 
 class AIService {
 
+  async generateBattleQuestions(topic, difficulty, count = 5) {
+    try {
+      const prompt = `Gere exatamente ${count} perguntas de múltipla escolha para uma batalha educacional.
+
+Tópico: ${topic}
+Dificuldade: ${difficulty} (1=fácil, 5=difícil)
+
+Retorne APENAS JSON válido:
+{
+  "questions": [
+    {
+      "question": "texto da pergunta",
+      "options": ["A", "B", "C", "D"],
+      "correctAnswer": "resposta exata igual a uma das options",
+      "explanation": "breve explicação"
+    }
+  ]
+}`;
+
+      const result = await this.generateJSON(prompt);
+      return result.questions || [];
+    } catch (error) {
+      console.error('Error generating battle questions:', error);
+      throw error;
+    }
+  }
+
   async generateExercise(topic, difficulty, type, userLevel) {
     try {
       const prompt = this.buildExercisePrompt(topic, difficulty, type, userLevel);
@@ -100,20 +127,30 @@ Dificuldades: ${weaknesses.join(', ')}
     }
   }
 
-  async analyzeProgress(userStats, recentExercises) {
+  async analyzeProgress(userStats, recentExercises = []) {
     try {
-      const prompt = `Analise progresso em JSON:
+      const exerciseSummary = recentExercises.slice(0, 15).map((e) => ({
+        topic: e.topic,
+        correct: e.isCorrect,
+        date: e.timestamp,
+      }));
 
-Taxa de acerto: ${userStats.accuracy}
-Exercícios: ${userStats.completed}
+      const prompt = `Você é um tutor educacional. Analise o progresso do aluno e responda APENAS JSON válido em português.
+
+Dados:
+- Taxa de acerto: ${userStats.accuracy}%
+- Exercícios completados: ${userStats.completed}
+- Nível: ${userStats.level || 1}
+- Streak: ${userStats.streak || 0} dias
+- Últimos exercícios: ${JSON.stringify(exerciseSummary)}
 
 {
-  "overallPerformance": "good",
-  "strengths": ["..."],
-  "weaknesses": ["..."],
-  "insights": ["..."],
-  "nextSteps": ["..."],
-  "motivationalMessage": "..."
+  "overallPerformance": "excellent|good|average|needs_improvement",
+  "strengths": ["ponto forte 1", "ponto forte 2"],
+  "weaknesses": ["área a melhorar 1"],
+  "insights": ["insight personalizado 1", "insight 2"],
+  "nextSteps": ["próximo passo 1", "próximo passo 2"],
+  "motivationalMessage": "mensagem motivacional curta"
 }`;
 
       return await this.generateJSON(prompt);

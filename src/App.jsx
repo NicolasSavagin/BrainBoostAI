@@ -9,7 +9,9 @@ import MainLayout from './components/layouts/MainLayout';
 import AuthLayout from './components/layouts/AuthLayout';
 
 // Pages
-import Forum from './pages/forum';
+import ForumList from './pages/forum/ForumList';
+import ForumTopic from './pages/forum/ForumTopic';
+import Battle from './pages/Battle';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import Dashboard from './pages/Dashboard';
@@ -117,7 +119,10 @@ useStreakCheck();
           <Route path="/achievements" element={<Achievements />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path='/community' element={<Community />} />
-          <Route path="/forum" element={<Forum />} />
+          <Route path="/forum" element={<ForumList />} />
+          <Route path="/forum/topic/:topicId" element={<ForumTopic />} />
+          <Route path="/battle" element={<Battle />} />
+          <Route path="/battle/:battleId" element={<Battle />} />
         </Route>
 
         {/* 🔁 Redirect inteligente */}

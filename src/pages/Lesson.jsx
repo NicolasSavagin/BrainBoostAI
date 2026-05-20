@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { BookOpen, CheckCircle, XCircle, ArrowRight, ArrowLeft, Award } from 'lucide-react';
-import { useAuthStore, useNotificationStore } from '../store';
+import { useAuthStore } from '../store';
+import { notify } from '../services/notificationService';
+import rankingService from '../services/rankingService';
 import lessonService from '../services/lessonService';
 import authService from '../services/authService';
+import achievementService from '../services/achievementService';
+import { applyXpToProfile } from '../utils/gamification';
 
 export default function Lesson() {
   const { subtopicId, lessonNumber } = useParams();
   const navigate = useNavigate();
   const { user, userProfile, setUserProfile } = useAuthStore();
-  const { addNotification } = useNotificationStore();
 
   const [loading, setLoading] = useState(true);
   const [lesson, setLesson] = useState(null);
@@ -40,7 +43,7 @@ export default function Lesson() {
 
     } catch (error) {
       console.error('Erro ao gerar lição:', error);
-      addNotification({
+      notify(user.uid, {
         type: 'error',
         message: 'Erro ao carregar lição. Verifique sua API key.'
       });
@@ -92,28 +95,39 @@ export default function Lesson() {
 
     // 🔥 Salvar progresso
     try {
-      await lessonService.completeLesson(
+      const subtopicProgress = await lessonService.completeLesson(
         user.uid,
         subtopicId,
-        parseInt(lessonNumber),
+        parseInt(lessonNumber, 10),
         score
       );
 
-      // Adicionar XP
       const xpGain = score >= 70 ? 50 : 20;
-
-      const updatedProfile = {
-        ...userProfile,
-        totalXP: (userProfile?.totalXP || 0) + xpGain,
-        xp: (userProfile?.xp || 0) + xpGain,
-      };
+      const { profile: updatedProfile, levelUps } = applyXpToProfile(userProfile, xpGain);
 
       await authService.updateUserProfile(user.uid, updatedProfile);
       setUserProfile(updatedProfile);
 
-      addNotification({
+      if (lesson?.topic) {
+        await rankingService.addCategoryXP(user.uid, lesson.topic, xpGain);
+      }
+
+      await achievementService.checkAfterLessonComplete(user.uid, subtopicProgress);
+      await achievementService.checkChallengeRewards(user.uid);
+
+      const freshProfile = await achievementService.refreshUserProfile(user.uid);
+      if (freshProfile) setUserProfile(freshProfile);
+
+      levelUps.forEach((lvl) => {
+        notify(user.uid, {
+          type: 'success',
+          message: `🎉 Você subiu para o Nível ${lvl}!`,
+        });
+      });
+
+      notify(user.uid, {
         type: 'success',
-        message: `Lição concluída! +${xpGain} XP`
+        message: `Lição concluída! +${xpGain} XP`,
       });
 
     } catch (error) {

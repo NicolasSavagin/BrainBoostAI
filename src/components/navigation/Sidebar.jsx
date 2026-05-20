@@ -18,9 +18,11 @@ import {
   Menu,
   Flame,
   Users,
-  MessageSquare
+  MessageSquare,
+  Swords
 } from 'lucide-react';
 import { useAuthStore, useThemeStore } from '../../store';
+import { getLevelProgress } from '../../utils/gamification';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../config/firebase';
 
@@ -40,10 +42,11 @@ export default function Sidebar() {
   };
 
   const navigation = [
-    { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Aprender', href: '/learn', icon: BookOpen },
     { name: 'Tutor Virtual', href: '/tutor', icon: MessageCircle },
     { name: 'Praticar', href: '/practice', icon: Dumbbell },
+    { name: 'Batalha', href: '/battle', icon: Swords },
     { name: 'Progresso', href: '/progress', icon: TrendingUp },
     { name: 'Ranking', href: '/leaderboard', icon: Trophy },
     { name: 'Comunidade', href: '/community', icon: Users },
@@ -56,6 +59,8 @@ export default function Sidebar() {
   const closeMobileMenu = () => {
     setIsMobileOpen(false);
   };
+
+  const levelProgress = getLevelProgress(userProfile);
 
   return (
     <>
@@ -130,15 +135,13 @@ export default function Sidebar() {
               <div className="flex justify-between text-xs mb-1">
                 <span className="text-gray-600 dark:text-gray-400">XP</span>
                 <span className="font-semibold text-gray-900 dark:text-white">
-                  {userProfile?.currentLevelXP || 0} / {userProfile?.xpForNextLevel || 100}
+                  {levelProgress.xp} / {levelProgress.xpForNextLevel}
                 </span>
               </div>
               <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                 <div 
                   className="h-full bg-gradient-to-r from-primary-500 to-purple-600 transition-all duration-500"
-                  style={{ 
-                    width: `${((userProfile?.currentLevelXP || 0) / (userProfile?.xpForNextLevel || 100)) * 100}%` 
-                  }}
+                  style={{ width: `${levelProgress.percent}%` }}
                 ></div>
               </div>
             </div>

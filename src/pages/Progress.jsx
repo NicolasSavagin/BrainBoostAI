@@ -9,12 +9,16 @@ import { TrendingUp, Award, Calendar, Target, Activity, Zap, BookOpen } from 'lu
 import { useAuthStore } from '../store';
 import exerciseService from '../services/exerciseService';
 import streakService from '../services/streakService';
+import aiService from '../services/aiService';
 
 export default function Progress() {
   const { user, userProfile } = useAuthStore();
   const [weeklyData, setWeeklyData] = useState([]);
   const [topicData, setTopicData] = useState([]);
   const [streakHistory, setStreakHistory] = useState([]);
+  const [aiInsights, setAiInsights] = useState(null);
+  const [insightsLoading, setInsightsLoading] = useState(false);
+  const [recentAttempts, setRecentAttempts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -75,13 +79,35 @@ export default function Progress() {
 
       setTopicData(topicStats);
 
-      // Processar histórico de streak
       setStreakHistory(history);
+      setRecentAttempts(attempts);
+      loadAiInsights(attempts);
 
     } catch (error) {
       console.error('Erro ao carregar progresso:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAiInsights = async (attempts) => {
+    try {
+      setInsightsLoading(true);
+      const insights = await aiService.analyzeProgress(
+        {
+          accuracy: userProfile?.accuracy || 0,
+          completed: userProfile?.completedExercises || 0,
+          level: userProfile?.level || 1,
+          streak: userProfile?.streak || 0,
+        },
+        attempts
+      );
+      setAiInsights(insights);
+    } catch (error) {
+      console.error('Erro ao gerar insights:', error);
+      setAiInsights(null);
+    } finally {
+      setInsightsLoading(false);
     }
   };
 
@@ -107,7 +133,7 @@ export default function Progress() {
       value: `${userProfile?.accuracy || 0}%`,
       color: "text-green-500",
       bgColor: "bg-green-50 dark:bg-green-900/20",
-      trend: "+5%"
+      trend: null
     },
     {
       icon: Award,
@@ -444,54 +470,63 @@ export default function Progress() {
         </div>
       </div>
 
-      {/* Insights da IA */}
       <div className="card bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border-blue-200 dark:border-blue-800">
-        <div className="flex items-start gap-4">
-          <div className="p-3 bg-white dark:bg-gray-800 rounded-lg">
-            <Zap className="text-blue-600" size={24} />
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-white dark:bg-gray-800 rounded-lg">
+              <Zap className="text-blue-600" size={24} />
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-900 dark:text-white">Insights com IA</h3>
+              <p className="text-xs text-gray-500">Análise personalizada do seu desempenho</p>
+            </div>
           </div>
-          <div>
-            <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
-              Insights da Semana
-            </h3>
-            <ul className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
-              <li className="flex items-start gap-2">
-                <span className="text-blue-600">•</span>
-                <span>
-                  Você completou <strong>{totalExercisesWeek} exercícios</strong> esta semana
-                  {totalExercisesWeek > 35 && ' - excelente ritmo! 🚀'}
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-blue-600">•</span>
-                <span>
-                  Sua precisão média foi de <strong>{avgAccuracy}%</strong>
-                  {avgAccuracy > 80 ? ' - mantendo alto padrão! 🎯' : ' - continue praticando'}
-                </span>
-              </li>
-              {topicData.length > 0 && (
-                <li className="flex items-start gap-2">
-                  <span className="text-blue-600">•</span>
-                  <span>
-                    Seu melhor tópico é <strong>{topicData.reduce((best, curr) => 
-                      curr.progress > best.progress ? curr : best
-                    ).subject}</strong>
-                  </span>
-                </li>
-              )}
-              {topicData.length > 0 && (
-                <li className="flex items-start gap-2">
-                  <span className="text-blue-600">•</span>
-                  <span>
-                    Recomendamos focar em <strong>{topicData.reduce((weakest, curr) => 
-                      curr.progress < weakest.progress ? curr : weakest
-                    ).subject}</strong> para equilibrar seu aprendizado
-                  </span>
-                </li>
-              )}
-            </ul>
-          </div>
+          <button
+            type="button"
+            onClick={() => loadAiInsights(recentAttempts)}
+            disabled={insightsLoading}
+            className="btn-secondary text-sm"
+          >
+            {insightsLoading ? 'Analisando...' : 'Atualizar'}
+          </button>
         </div>
+
+        {insightsLoading && !aiInsights ? (
+          <p className="text-sm text-gray-500">Gerando análise com Gemini...</p>
+        ) : aiInsights ? (
+          <div className="space-y-4 text-sm text-gray-700 dark:text-gray-300">
+            {aiInsights.motivationalMessage && (
+              <p className="font-medium text-primary-700 dark:text-primary-300">
+                {aiInsights.motivationalMessage}
+              </p>
+            )}
+            {aiInsights.insights?.length > 0 && (
+              <ul className="space-y-2">
+                {aiInsights.insights.map((item, i) => (
+                  <li key={i} className="flex gap-2">
+                    <span className="text-blue-600">•</span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {aiInsights.nextSteps?.length > 0 && (
+              <div>
+                <p className="font-semibold text-gray-900 dark:text-white mb-2">Próximos passos</p>
+                <ul className="space-y-1">
+                  {aiInsights.nextSteps.map((step, i) => (
+                    <li key={i}>→ {step}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        ) : (
+          <ul className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+            <li>• Você completou <strong>{totalExercisesWeek}</strong> exercícios esta semana</li>
+            <li>• Precisão média: <strong>{avgAccuracy}%</strong></li>
+          </ul>
+        )}
       </div>
     </div>
   );

@@ -18,13 +18,14 @@ import {
   Play,
   Pause
 } from 'lucide-react';
-import { useAuthStore, useNotificationStore } from '../store';
+import { useAuthStore } from '../store';
 import tutorService from '../services/tutorService';
 import studyPlanService from '../services/studyPlanService';
+import achievementService from '../services/achievementService';
+import { notify } from '../services/notificationService';
 
 export default function Tutor() {
-  const { user, userProfile } = useAuthStore();
-  const { addNotification } = useNotificationStore();
+  const { user, userProfile, setUserProfile } = useAuthStore();
 
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
@@ -36,6 +37,7 @@ export default function Tutor() {
   const [studyPlan, setStudyPlan] = useState(null);
   const [savedPlans, setSavedPlans] = useState([]);
   const [showSavedPlans, setShowSavedPlans] = useState(false);
+  const [expandedPlanId, setExpandedPlanId] = useState(null);
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -150,7 +152,7 @@ Como posso te ajudar hoje?`,
 
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);
-      addNotification({
+      notify(user.uid, {
         type: 'error',
         message: 'Erro ao obter resposta do tutor. Verifique sua API key.'
       });
@@ -181,14 +183,14 @@ Como posso te ajudar hoje?`,
       setStudyPlan(plan);
       setShowStudyPlan(true);
 
-      addNotification({
+      notify(user.uid, {
         type: 'success',
         message: 'Plano de estudos gerado com sucesso!'
       });
 
     } catch (error) {
       console.error('Erro ao gerar plano:', error);
-      addNotification({
+      notify(user.uid, {
         type: 'error',
         message: 'Erro ao gerar plano de estudos'
       });
@@ -209,7 +211,7 @@ Como posso te ajudar hoje?`,
         title: planTitle
       });
 
-      addNotification({
+      notify(user.uid, {
         type: 'success',
         message: '💾 Plano salvo com sucesso!'
       });
@@ -219,7 +221,7 @@ Como posso te ajudar hoje?`,
 
     } catch (error) {
       console.error('Erro ao salvar plano:', error);
-      addNotification({
+      notify(user.uid, {
         type: 'error',
         message: 'Erro ao salvar plano'
       });
@@ -233,7 +235,7 @@ Como posso te ajudar hoje?`,
       await studyPlanService.deletePlan(planId);
       await loadSavedPlans();
       
-      addNotification({
+      notify(user.uid, {
         type: 'success',
         message: 'Plano excluído com sucesso'
       });
@@ -248,7 +250,7 @@ Como posso te ajudar hoje?`,
       await studyPlanService.togglePlanStatus(planId, newStatus);
       await loadSavedPlans();
 
-      addNotification({
+      notify(user.uid, {
         type: 'success',
         message: newStatus === 'active' ? 'Plano retomado!' : 'Plano pausado'
       });
@@ -259,12 +261,24 @@ Como posso te ajudar hoje?`,
 
   const completeActivity = async (planId, dayIndex, activityIndex) => {
     try {
-      await studyPlanService.completeActivity(planId, dayIndex, activityIndex);
+      const result = await studyPlanService.completeActivity(planId, dayIndex, activityIndex);
+      if (result.wasAlreadyComplete) return;
+
+      await achievementService.awardXp(user.uid, 15, 'Atividade do plano de estudos');
+      await achievementService.checkChallengeRewards(user.uid);
+
+      const fresh = await achievementService.refreshUserProfile(user.uid);
+      if (fresh) setUserProfile(fresh);
+
       await loadSavedPlans();
 
-      addNotification({
+      if (result.progress === 100) {
+        await achievementService.awardXp(user.uid, 50, 'Plano de estudos 100% completo!');
+      }
+
+      await notify(user.uid, {
         type: 'success',
-        message: '✅ Atividade completada!'
+        message: `✅ Atividade concluída! Plano: ${result.progress}%`,
       });
     } catch (error) {
       console.error('Erro ao completar atividade:', error);
@@ -398,63 +412,102 @@ Como posso te ajudar hoje?`,
             ) : (
               <div className="space-y-3">
                 {savedPlans.map((plan) => (
-                  <div 
-                    key={plan.id} 
+                  <div
+                    key={plan.id}
                     className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-primary-500 transition-colors"
                   >
                     <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1">
+                      <button
+                        type="button"
+                        className="flex-1 text-left"
+                        onClick={() =>
+                          setExpandedPlanId(expandedPlanId === plan.id ? null : plan.id)
+                        }
+                      >
                         <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
                           {plan.title}
                         </h4>
                         <div className="flex items-center gap-2 mt-1">
-                          <span className={`badge text-xs ${
-                            plan.status === 'active' 
-                              ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'
+                          <span
+                            className={`badge text-xs ${
+                              plan.status === 'active'
+                                ? 'bg-green-100 dark:bg-green-900 text-green-700'
+                                : plan.status === 'completed'
+                                  ? 'bg-blue-100 dark:bg-blue-900 text-blue-700'
+                                  : 'bg-gray-100 text-gray-700'
+                            }`}
+                          >
+                            {plan.status === 'active'
+                              ? 'Ativo'
                               : plan.status === 'completed'
-                              ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
-                              : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                          }`}>
-                            {plan.status === 'active' ? 'Ativo' : plan.status === 'completed' ? 'Completo' : 'Pausado'}
+                                ? 'Completo'
+                                : 'Pausado'}
                           </span>
-                          <span className="text-xs text-gray-500">
-                            {plan.progress}%
-                          </span>
+                          <span className="text-xs text-gray-500">{plan.progress || 0}%</span>
                         </div>
-                      </div>
+                      </button>
                       <div className="flex gap-1">
                         <button
+                          type="button"
                           onClick={() => togglePlanStatus(plan.id, plan.status)}
                           className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
-                          title={plan.status === 'active' ? 'Pausar' : 'Retomar'}
                         >
                           {plan.status === 'active' ? (
-                            <Pause size={14} className="text-gray-600" />
+                            <Pause size={14} />
                           ) : (
                             <Play size={14} className="text-green-600" />
                           )}
                         </button>
                         <button
+                          type="button"
                           onClick={() => deletePlan(plan.id)}
                           className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
-                          title="Excluir"
                         >
                           <Trash2 size={14} className="text-red-600" />
                         </button>
                       </div>
                     </div>
 
-                    {/* Progress Bar */}
-                    <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-gradient-to-r from-primary-500 to-purple-600 transition-all duration-500"
-                        style={{ width: `${plan.progress}%` }}
-                      ></div>
+                    <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-2">
+                      <div
+                        className="h-full bg-gradient-to-r from-primary-500 to-purple-600"
+                        style={{ width: `${plan.progress || 0}%` }}
+                      />
                     </div>
 
-                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
-                      Criado em {new Date(plan.createdAt?.toDate()).toLocaleDateString('pt-BR')}
-                    </p>
+                    {expandedPlanId === plan.id && plan.weeklyPlan?.length > 0 && (
+                      <div className="mt-3 space-y-2 max-h-48 overflow-y-auto">
+                        {plan.weeklyPlan.map((day, dayIdx) => (
+                          <div key={dayIdx}>
+                            <p className="text-xs font-semibold text-primary-600 mb-1">
+                              {day.day}
+                            </p>
+                            {day.activities?.map((act, actIdx) => (
+                              <label
+                                key={actIdx}
+                                className="flex items-start gap-2 p-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer text-xs"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={!!act.completed}
+                                  onChange={() =>
+                                    completeActivity(plan.id, dayIdx, actIdx)
+                                  }
+                                  className="mt-0.5"
+                                />
+                                <span
+                                  className={
+                                    act.completed ? 'line-through text-gray-400' : ''
+                                  }
+                                >
+                                  {act.activity} ({act.time})
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

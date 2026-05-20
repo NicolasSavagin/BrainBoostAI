@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import Sidebar from '../navigation/Sidebar';
 import Header from '../navigation/Header';
+import ToastNotifications from '../common/ToastNotifications';
 import { useUIStore } from '../../store';
 
 export default function MainLayout() {
@@ -21,6 +22,7 @@ export default function MainLayout() {
           </div>
         </main>
       </div>
+      <ToastNotifications />
     </div>
   );
 }

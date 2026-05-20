@@ -1,26 +1,26 @@
-// src/hooks/useStreakCheck.js
-
 import { useEffect } from 'react';
 import { useAuthStore } from '../store';
 import streakService from '../services/streakService';
+import achievementService from '../services/achievementService';
 
 export function useStreakCheck() {
-  const { user } = useAuthStore();
+  const { user, setUserProfile } = useAuthStore();
 
   useEffect(() => {
-    if (user) {
-      // Verifica streak ao carregar a aplicação
-      checkStreak();
-    }
-  }, [user]);
+    if (!user) return;
 
-  const checkStreak = async () => {
-    try {
-      await streakService.checkAndUpdateStreak(user.uid);
-    } catch (error) {
-      console.error('Erro ao verificar streak:', error);
-    }
-  };
+    const syncStreak = async () => {
+      try {
+        await streakService.checkAndUpdateStreak(user.uid);
+        const profile = await achievementService.refreshUserProfile(user.uid);
+        if (profile) setUserProfile(profile);
+      } catch (error) {
+        console.error('Erro ao verificar streak:', error);
+      }
+    };
+
+    syncStreak();
+  }, [user, setUserProfile]);
 
   return null;
 }

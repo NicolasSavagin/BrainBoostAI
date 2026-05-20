@@ -90,8 +90,8 @@ class AuthService {
           photoURL: user.photoURL,
           createdAt: new Date().toISOString(),
         });
-      } else {
-        console.log("👤 USUÁRIO JÁ EXISTE");
+      } else if (user.photoURL) {
+        await this.updateUserProfile(user.uid, { photoURL: user.photoURL });
       }
 
       return user;
@@ -126,6 +126,27 @@ class AuthService {
         streak: 0,
         lastLoginDate: new Date().toISOString(),
         achievements: [],
+        dailyGoal: 5,
+        showEducation: true,
+        showExperience: true,
+        showCertifications: true,
+        showSkills: true,
+        weeklyXP: 0,
+        weeklyXPWeek: '',
+        completedChallengesToday: [],
+        completedChallengesWeek: [],
+        battleLP: 0,
+        battleTier: 'madeira',
+        battleWins: 0,
+        battleLosses: 0,
+        battleDraws: 0,
+        battlePlayed: 0,
+        categoryXP: {
+          Programação: 0,
+          Matemática: 0,
+          Inglês: 0,
+          Geral: 0,
+        },
         completedExercises: 0,
         accuracy: 0,
         studyTime: 30,

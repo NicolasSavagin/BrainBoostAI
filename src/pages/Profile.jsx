@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { 
   User, Mail, Calendar, Settings, Camera, MapPin, Link as LinkIcon,
   Briefcase, GraduationCap, Award, Code, Github, Linkedin, Twitter,
@@ -29,7 +30,11 @@ export default function Profile() {
     website: '',
     github: '',
     linkedin: '',
-    twitter: ''
+    twitter: '',
+    showEducation: true,
+    showExperience: true,
+    showCertifications: true,
+    showSkills: true,
   });
 
   const [educationForm, setEducationForm] = useState({
@@ -111,7 +116,11 @@ export default function Profile() {
           website: fullProfile.user.website || '',
           github: fullProfile.user.github || '',
           linkedin: fullProfile.user.linkedin || '',
-          twitter: fullProfile.user.twitter || ''
+          twitter: fullProfile.user.twitter || '',
+          showEducation: fullProfile.user.showEducation !== false,
+          showExperience: fullProfile.user.showExperience !== false,
+          showCertifications: fullProfile.user.showCertifications !== false,
+          showSkills: fullProfile.user.showSkills !== false,
         });
       }
 
@@ -369,14 +378,22 @@ export default function Profile() {
               </div>
             </div>
 
-            {/* Edit Button */}
-            <button 
-              onClick={() => setEditing(!editing)}
-              className="btn-secondary flex items-center gap-2 mt-4 md:mt-0"
-            >
-              <Settings size={16} />
-              {editing ? 'Cancelar' : 'Editar Perfil'}
-            </button>
+            <div className="flex flex-wrap gap-2 mt-4 md:mt-0">
+              <Link
+                to={`/profile/${user.uid}`}
+                className="btn-primary flex items-center gap-2 text-sm"
+              >
+                <Globe size={16} />
+                Ver perfil público
+              </Link>
+              <button
+                onClick={() => setEditing(!editing)}
+                className="btn-secondary flex items-center gap-2"
+              >
+                <Settings size={16} />
+                {editing ? 'Cancelar' : 'Editar Perfil'}
+              </button>
+            </div>
           </div>
 
           {/* Stats */}
@@ -544,6 +561,28 @@ export default function Profile() {
                   className="input-field"
                 />
               </div>
+            </div>
+
+            <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg space-y-3">
+              <p className="text-sm font-medium text-gray-900 dark:text-white">
+                Visibilidade no perfil público
+              </p>
+              {[
+                { key: 'showEducation', label: 'Mostrar formação acadêmica' },
+                { key: 'showExperience', label: 'Mostrar experiência profissional' },
+                { key: 'showCertifications', label: 'Mostrar certificações' },
+                { key: 'showSkills', label: 'Mostrar habilidades' },
+              ].map(({ key, label }) => (
+                <label key={key} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={bioForm[key]}
+                    onChange={(e) => setBioForm({ ...bioForm, [key]: e.target.checked })}
+                    className="rounded border-gray-300"
+                  />
+                  {label}
+                </label>
+              ))}
             </div>
 
             <div className="flex gap-3">

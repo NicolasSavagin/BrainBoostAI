@@ -3,14 +3,18 @@ import { Target, CheckCircle, XCircle, Brain, Lightbulb, ArrowRight, TrendingUp 
 import aiService from '../services/aiService';
 import authService from '../services/authService';
 import exerciseService from '../services/exerciseService';
-import { useAuthStore, useLearningStore, useNotificationStore } from '../store';
+import { useAuthStore, useLearningStore } from '../store';
+import { notify } from '../services/notificationService';
+import rankingService from '../services/rankingService';
 import skillProgressService from '../services/skillProgressService';
+import streakService from '../services/streakService';
+import achievementService from '../services/achievementService';
+import { applyXpToProfile } from '../utils/gamification';
 
 
 export default function Practice() {
   const { user, userProfile, setUserProfile } = useAuthStore();
   const { addExerciseResult } = useLearningStore();
-  const { addNotification } = useNotificationStore();
 
   const [loading, setLoading] = useState(false);
   const [currentExercise, setCurrentExercise] = useState(null);
@@ -56,7 +60,7 @@ export default function Practice() {
 
   const generateExercise = async () => {
     if (!selectedTopic) {
-      addNotification({ type: 'warning', message: 'Selecione um tópico' });
+      notify(user.uid, { type: 'warning', message: 'Selecione um tópico' });
       return;
     }
 
@@ -89,16 +93,16 @@ export default function Practice() {
       setCurrentExercise(exercise);
       setCurrentExerciseId(exerciseId);
 
-      addNotification({
+      notify(user.uid, {
         type: 'info',
-        message: `Exercício nível ${difficulty} gerado!`
+        message: `Exercício nível ${difficulty} gerado!`,
       });
 
     } catch (error) {
       console.error(error);
-      addNotification({ 
-        type: 'error', 
-        message: 'Erro ao gerar exercício. Verifique sua API key.' 
+      notify(user.uid, {
+        type: 'error',
+        message: 'Erro ao gerar exercício. Verifique sua API key.',
       });
     } finally {
       setLoading(false);
@@ -130,7 +134,8 @@ export default function Practice() {
         difficulty,
         timeSpent: 0, // você pode adicionar timer depois
       });
-      // 🎯 Adicionar XP à skill
+      const xpGain = feedbackData.isCorrect ? (currentExercise.xpReward || 10) : 2;
+
       const skillMap = {
         'Programação - JavaScript': 'JavaScript',
         'Programação - Python': 'Python',
@@ -150,48 +155,46 @@ export default function Practice() {
         );
 
         if (skillResult.leveledUp) {
-          addNotification({
+          notify(user.uid, {
             type: 'success',
-            message: `🎉 ${skillName} subiu para Nível ${skillResult.newLevel}!`
+            message: `🎉 ${skillName} subiu para Nível ${skillResult.newLevel}!`,
           });
         }
       }
 
-      // Calcular XP
-      const xpGain = feedbackData.isCorrect ? currentExercise.xpReward : 2;
-
-      // 🔥 Atualizar perfil do usuário
-      const updatedProfile = {
+      const baseProfile = {
         ...userProfile,
-        totalXP: (userProfile?.totalXP || 0) + xpGain,
-        xp: (userProfile?.xp || 0) + xpGain,
         completedExercises: (userProfile?.completedExercises || 0) + 1,
       };
 
-      // Verificar subida de nível
-      const currentLevel = userProfile?.level || 1;
-      const xpForNextLevel = currentLevel * 100;
+      const { profile: updatedProfile, levelUps } = applyXpToProfile(baseProfile, xpGain);
 
-      if (updatedProfile.xp >= xpForNextLevel) {
-        updatedProfile.level = currentLevel + 1;
-        updatedProfile.xp = updatedProfile.xp - xpForNextLevel;
-
-        addNotification({
+      levelUps.forEach((lvl) => {
+        notify(user.uid, {
           type: 'success',
-          message: `🎉 Parabéns! Você subiu para o Nível ${updatedProfile.level}!`
+          message: `🎉 Parabéns! Você subiu para o Nível ${lvl}!`,
         });
-      }
+      });
 
-      // Recalcular precisão
       const attempts = await exerciseService.getUserAttempts(user.uid, 100);
-      const correct = attempts.filter(a => a.isCorrect).length;
-      updatedProfile.accuracy = Math.round((correct / attempts.length) * 100);
+      const correct = attempts.filter((a) => a.isCorrect).length;
+      updatedProfile.accuracy = attempts.length
+        ? Math.round((correct / attempts.length) * 100)
+        : 0;
 
-      // 🔥 Atualizar no Firebase
       await authService.updateUserProfile(user.uid, updatedProfile);
-
-      // 🔥 Atualizar estado local
       setUserProfile(updatedProfile);
+
+      await rankingService.addCategoryXP(user.uid, selectedTopic, xpGain);
+
+      await achievementService.checkAfterExercise(user.uid, updatedProfile);
+
+      const dailyGoal = await streakService.checkDailyGoal(user.uid);
+      await achievementService.checkAfterDailyGoal(user.uid, dailyGoal.isComplete);
+      await achievementService.checkChallengeRewards(user.uid);
+
+      const freshProfile = await achievementService.refreshUserProfile(user.uid);
+      if (freshProfile) setUserProfile(freshProfile);
 
       // Histórico local
       addExerciseResult({
@@ -204,19 +207,16 @@ export default function Practice() {
       // Recarregar estatísticas
       await loadTopicStats();
 
-      addNotification({
+      notify(user.uid, {
         type: feedbackData.isCorrect ? 'success' : 'info',
         message: feedbackData.isCorrect
           ? `✅ Correto! +${xpGain} XP`
-          : '❌ Resposta incorreta. Continue tentando!'
+          : '❌ Resposta incorreta. Continue tentando!',
       });
 
     } catch (error) {
       console.error(error);
-      addNotification({
-        type: 'error',
-        message: 'Erro ao processar resposta'
-      });
+      notify(user.uid, { type: 'error', message: 'Erro ao processar resposta' });
     } finally {
       setLoading(false);
     }

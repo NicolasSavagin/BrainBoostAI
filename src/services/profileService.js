@@ -200,16 +200,65 @@ class ProfileService {
     try {
       await updateDoc(doc(db, 'users', userId), {
         bio: bioData.bio || '',
-        headline: bioData.headline || '', // ex: "Desenvolvedor Full Stack | React | Node.js"
+        headline: bioData.headline || '',
         location: bioData.location || '',
         website: bioData.website || '',
         github: bioData.github || '',
         linkedin: bioData.linkedin || '',
         twitter: bioData.twitter || '',
-        updatedAt: serverTimestamp()
+        showEducation: bioData.showEducation !== false,
+        showExperience: bioData.showExperience !== false,
+        showCertifications: bioData.showCertifications !== false,
+        showSkills: bioData.showSkills !== false,
+        updatedAt: serverTimestamp(),
       });
     } catch (error) {
       console.error('Erro ao atualizar bio:', error);
+      throw error;
+    }
+  }
+
+  /** Perfil público — respeita flags de privacidade do usuário */
+  async getPublicProfile(userId) {
+    try {
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      if (!userDoc.exists()) return null;
+
+      const user = { id: userDoc.id, ...userDoc.data() };
+      const showEducation = user.showEducation !== false;
+      const showExperience = user.showExperience !== false;
+      const showCertifications = user.showCertifications !== false;
+      const showSkills = user.showSkills !== false;
+
+      const fetches = [
+        showEducation
+          ? getDocs(query(collection(db, 'education'), where('userId', '==', userId), orderBy('startDate', 'desc')))
+          : Promise.resolve({ docs: [] }),
+        showExperience
+          ? getDocs(query(collection(db, 'experiences'), where('userId', '==', userId), orderBy('startDate', 'desc')))
+          : Promise.resolve({ docs: [] }),
+        showSkills
+          ? getDocs(query(collection(db, 'skills'), where('userId', '==', userId)))
+          : Promise.resolve({ docs: [] }),
+        showCertifications
+          ? getDocs(query(collection(db, 'certifications'), where('userId', '==', userId), orderBy('issueDate', 'desc')))
+          : Promise.resolve({ docs: [] }),
+        getDocs(query(collection(db, 'projects'), where('userId', '==', userId), orderBy('createdAt', 'desc'))),
+      ];
+
+      const [educationDocs, experienceDocs, skillsDocs, certificationsDocs, projectsDocs] =
+        await Promise.all(fetches);
+
+      return {
+        user,
+        education: educationDocs.docs.map((d) => ({ id: d.id, ...d.data() })),
+        experiences: experienceDocs.docs.map((d) => ({ id: d.id, ...d.data() })),
+        skills: skillsDocs.docs.map((d) => ({ id: d.id, ...d.data() })),
+        certifications: certificationsDocs.docs.map((d) => ({ id: d.id, ...d.data() })),
+        projects: projectsDocs.docs.map((d) => ({ id: d.id, ...d.data() })),
+      };
+    } catch (error) {
+      console.error('Erro ao buscar perfil público:', error);
       throw error;
     }
   }

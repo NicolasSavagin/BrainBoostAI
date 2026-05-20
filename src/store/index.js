@@ -48,22 +48,9 @@ export const useLearningStore = create((set, get) => ({
   setCurrentLesson: (lesson) => set({ currentLesson: lesson }),
   setCurrentExercise: (exercise) => set({ currentExercise: exercise }),
   
-addExerciseResult: (result) => set((state) => {
-  const newHistory = [...state.exerciseHistory, result];
-
-  const correctAnswers = newHistory.filter(r => r.correct).length;
-  const total = newHistory.length;
-
-  const accuracy = total > 0 ? Math.round((correctAnswers / total) * 100) : 0;
-
-  const xpGain = result.correct ? 10 : 2;
-
-  return {
-    exerciseHistory: newHistory,
-    completedToday: state.completedToday + 1,
-    streak: state.streak + 1, // simples (depois dá pra melhorar)
-  };
-}),
+addExerciseResult: (result) => set((state) => ({
+  exerciseHistory: [...state.exerciseHistory, result],
+})),
   
   resetDailyProgress: () => set({ completedToday: 0 }),
   

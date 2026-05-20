@@ -1,5 +1,6 @@
-import { Bell, Sun, Moon, LogOut, Settings } from 'lucide-react';
-import { useAuthStore, useThemeStore, useNotificationStore } from '../../store';
+import { Link } from 'react-router-dom';
+import { Sun, Moon, LogOut, Settings } from 'lucide-react';
+import { useAuthStore, useThemeStore } from '../../store';
 import authService from '../../services/authService';
 import { useState } from 'react';
 import NotificationPanel from '../common/NotificationPanel';
@@ -8,15 +9,11 @@ import NotificationPanel from '../common/NotificationPanel';
 export default function Header() {
   const { user, userProfile } = useAuthStore();
   const { theme, toggleTheme } = useThemeStore();
-  const { notifications } = useNotificationStore();
-  const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
 
   const handleLogout = async () => {
     await authService.logout();
   };
-
-  const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
     <header className="h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 flex items-center justify-between">
@@ -65,13 +62,14 @@ export default function Header() {
 
           {showProfile && (
             <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-2 z-50">
-              <button
+              <Link
+                to="/profile"
                 className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-gray-700 dark:text-gray-300"
                 onClick={() => setShowProfile(false)}
               >
                 <Settings size={16} />
-                <span>Configurações</span>
-              </button>
+                <span>Meu Perfil</span>
+              </Link>
               <button
                 onClick={handleLogout}
                 className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 text-red-600 dark:text-red-400"
